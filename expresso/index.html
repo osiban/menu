@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kafe Menü</title>
+    <title>Expresso Cafe </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #f1f5f9; font-family: 'Inter', sans-serif; }
         
-        /* Kategori Butonları İçin Özel Ayar */
         .category-scroll { 
             display: flex;
             overflow-x: auto; 
@@ -16,13 +15,13 @@
             gap: 12px;
             padding: 15px 20px;
             -webkit-overflow-scrolling: touch; 
-            scrollbar-width: none; /* Firefox */
+            scrollbar-width: none;
         }
-        .category-scroll::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
+        .category-scroll::-webkit-scrollbar { display: none; }
 
         .category-btn { 
-            flex: 0 0 auto; /* Butonların sıkışmasını engeller */
-            padding: 10px 20px;
+            flex: 0 0 auto;
+            padding: 10px 22px;
             border-radius: 12px;
             font-weight: 600;
             font-size: 14px;
@@ -33,29 +32,28 @@
         }
 
         .category-btn.active { 
-            background-color: #f97316; /* Turuncu */
+            background-color: #f97316;
             color: white;
             border-color: #f97316;
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
         }
 
         .item-card { 
             display: flex;
             align-items: center;
             background-color: #1e293b; 
-            padding: 12px;
-            border-radius: 16px; 
+            padding: 14px;
+            border-radius: 20px; 
             border: 1px solid #334155;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             transition: transform 0.2s;
         }
-        .item-card:active { transform: scale(0.98); }
         
         .item-img { 
-            width: 85px; 
-            height: 85px; 
-            border-radius: 12px; 
-            object-cover: cover;
+            width: 80px; 
+            height: 80px; 
+            border-radius: 14px; 
+            object-fit: cover;
             background-color: #334155;
         }
 
@@ -68,8 +66,8 @@
         <div class="inline-block p-3 rounded-2xl bg-orange-500 mb-3 shadow-lg shadow-orange-500/20">
             <span class="text-2xl">☕</span>
         </div>
-        <h1 class="text-3xl font-black tracking-tight text-white">KAREM CAFE</h1>
-        <p class="text-gray-400 text-xs mt-1 tracking-[0.2em] uppercase">Dijital Menü</p>
+        <h1 class="text-3xl font-black tracking-tight text-white uppercase">KAREM CAFE</h1>
+        <p class="text-gray-400 text-xs mt-1 tracking-[0.2em] uppercase font-medium">Lezzet Durağınız</p>
     </header>
 
     <div class="sticky top-0 bg-[#0f172a]/95 backdrop-blur-md z-30 border-b border-gray-800">
@@ -78,7 +76,7 @@
     </div>
 
     <div id="loader" class="text-center p-20">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mx-auto"></div>
+        <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-orange-500 mx-auto"></div>
     </div>
 
     <main id="menu-container" class="p-4 max-w-2xl mx-auto hidden">
@@ -96,7 +94,6 @@
                 const csvData = await response.text();
                 
                 const rows = csvData.split('\n').map(row => {
-                    // CSV ayırma mantığını güçlendirdik (virgüllere karşı)
                     return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
                 });
 
@@ -108,38 +105,43 @@
                     return obj;
                 }).filter(item => item['Ürün Adı']);
 
-                const categories = ['Hepsi', ...new Set(allItems.map(i => i['Kategori']))];
+                // "Hepsi" seçeneğini sildik, sadece var olan kategorileri aldık
+                const categories = [...new Set(allItems.map(i => i['Kategori']))];
                 
                 renderCategories(categories);
-                renderItems('Hepsi');
+                
+                // İlk açılışta listenin en başındaki kategoriyi göster
+                if (categories.length > 0) {
+                    filter(categories[0]);
+                }
 
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('menu-container').classList.remove('hidden');
                 
             } catch (err) {
                 console.error(err);
-                document.getElementById('loader').innerHTML = "⚠️ Veriler alınamadı.";
+                document.getElementById('loader').innerHTML = "⚠️ Menü şu an yüklenemiyor.";
             }
         }
 
         function renderCategories(cats) {
             const nav = document.getElementById('categories');
             nav.innerHTML = cats.map(cat => `
-                <button onclick="filter('${cat}')" class="category-btn ${cat === 'Hepsi' ? 'active' : ''}">${cat}</button>
+                <button onclick="filter('${cat}')" class="category-btn">${cat}</button>
             `).join('');
         }
 
         function renderItems(selectedCat) {
             const container = document.getElementById('menu-container');
-            const filtered = selectedCat === 'Hepsi' ? allItems : allItems.filter(i => i['Kategori'] === selectedCat);
+            const filtered = allItems.filter(i => i['Kategori'] === selectedCat);
             
             container.innerHTML = filtered.map(item => `
-                <div class="item-card">
+                <div class="item-card animate-in fade-in slide-in-from-bottom-2 duration-500">
                     <img src="${item['Görsel Linki'] || 'https://via.placeholder.com/150/1e293b/fff?text=...'}" class="item-img" onerror="this.src='https://via.placeholder.com/150/1e293b/fff?text=Resim'">
                     <div class="ml-4 flex-1">
                         <h3 class="font-bold text-white text-md leading-tight">${item['Ürün Adı']}</h3>
                         <p class="text-gray-400 text-xs mt-1 line-clamp-2">${item['Açıklama'] || ''}</p>
-                        <div class="mt-2 flex justify-between items-center">
+                        <div class="mt-2">
                             <span class="price-tag">${item['Fiyat']} TL</span>
                         </div>
                     </div>
@@ -148,14 +150,14 @@
         }
 
         function filter(cat) {
-            // Buton aktiflik durumunu güncelle
             document.querySelectorAll('.category-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.innerText === cat);
+                if(btn.innerText === cat) {
+                    btn.classList.add('active');
+                    btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                } else {
+                    btn.classList.remove('active');
+                }
             });
-            
-            // Seçilen kategoriye kaydır (mobil konfor için)
-            event.target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            
             renderItems(cat);
         }
 
