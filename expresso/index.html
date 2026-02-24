@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kafe Menü</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { @apply bg-gray-900 text-gray-100; } /* Koyu arka plan ve açık yazı */
+        header { @apply bg-gray-800 shadow-lg; }
+        nav { @apply bg-gray-800 border-b border-gray-700; }
+        .category-scroll { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        .category-scroll::-webkit-scrollbar { display: none; }
+        .category-button { @apply px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200; }
+        .category-button.active { @apply bg-purple-600 text-white; }
+        .category-button:not(.active) { @apply bg-gray-700 text-gray-300 hover:bg-gray-600; }
+        .menu-item-card { @apply flex items-center bg-gray-800 p-3 rounded-xl shadow-lg border border-gray-700; }
+        .menu-item-card img { @apply w-20 h-20 rounded-lg object-cover flex-shrink-0; }
+        .menu-item-card .title { @apply font-bold text-lg text-white; }
+        .menu-item-card .description { @apply text-sm text-gray-400; }
+        .menu-item-card .price { @apply text-purple-400 font-bold mt-1 block; }
+    </style>
+</head>
+<body>
+
+    <header class="p-6 text-center">
+        <h1 class="text-3xl font-extrabold tracking-tight">☕ Kafe Menü ☕</h1>
+        <p class="text-sm text-gray-400 mt-2">Lezzet Durağınız</p>
+    </header>
+
+    <nav id="category-nav" class="category-scroll flex gap-3 p-4 sticky top-0 z-10">
+        </nav>
+
+    <main id="menu-container" class="p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        </main>
+
+    <script>
+        const SPREADSHEET_ID = '2PACX-1vQStsjKaO7a8FA-hdHej5mdFoiThR8xaPT_I_x16YanCIHZ6kQSXop4Qw0-VNUHBHiIxO3Cyj20u41r'; // Senin Google Sheets ID'n
+        const CATEGORIES = ['Hepsi', 'Sıcak İçecekler', 'Soğuk İçecekler', 'Bitki Çayları', 'Kahve Çeşitleri', 'Fast Food', 'Tatlılar']; // Kategori listesi
+
+        async function fetchMenuData() {
+            // Google Sheets'in JSON API endpoint'i.
+            // Bu linki, Paylaş -> Web'de Yayınla -> Yayınla -> Biçim: JSON olarak aldıktan sonra kopyalamalısın.
+            // Senin verdiğin link pubhtml olduğu için, ben onu pubjson ile değiştirdim.
+            const url = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pubjson`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.text(); // Raw metin olarak al
+                
+                // Google Sheets'in JSON yapısı biraz karmaşık, onu doğru şekilde parse etmemiz gerekiyor.
+                // Genellikle "feed" -> "entry" içinde veriler bulunur.
+                const jsonStartIndex = data.indexOf('google.visualization.Query.setResponse(') + 'google.visualization.Query.setResponse('.length;
+                const jsonEndIndex = data.lastIndexOf(');');
+                const jsonString = data.substring(jsonStartIndex, jsonEndIndex);
+                const jsonData = JSON.parse(jsonString);
+
+                const rows = jsonData.table.rows;
+                const columns = jsonData.table.cols;
+
+                // Sütun başlıklarını alalım
+                const headers = columns.map(col => col.label);
+
+                const menuItems = rows.map(row => {
+                    const item = {};
+                    row.c.forEach((cell, index) => {
+                        if (cell && cell.v !== null) { // Boş hücreleri atla
+                            item[headers[index]] = cell.v;
+                        }
+                    });
+                    return item;
+                }).filter(item => Object.keys(item).length > 0); // Tamamen boş satırları filtrele
+
+                renderCategories(CATEGORIES);
+                renderMenuItems(menuItems);
+                filter('Hepsi'); // Sayfa yüklendiğinde tüm ürünleri göster
+                return menuItems;
+
+            } catch (error) {
+                console.error("Menü verileri çekilirken bir hata oluştu:", error);
+                document.getElementById('menu-container').innerHTML = '<p class="text-red-400 text-center">Menü yüklenemedi. Lütfen daha sonra tekrar deneyin.</p>';
+                return [];
+            }
+        }
+
+        function renderCategories(categories) {
+            const navContainer = document.getElementById('category-nav');
+            navContainer.innerHTML = ''; // Mevcut butonları temizle
+
+            categories.forEach(category => {
+                const button = document.createElement('button');
+                button.textContent = category;
+                button.classList.add('category-button');
+                button.onclick = () => filter(category);
+                navContainer.appendChild(button);
+            });
+        }
+
+        function renderMenuItems(items) {
+            const menuContainer = document.getElementById('menu-container');
+            menuContainer.innerHTML = ''; // Mevcut öğeleri temizle
+
+            items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('menu-item-card');
+                itemDiv.setAttribute('data-category', item['Kategori']); // Google Sheet'teki Kategori sütun adıyla eşleşmeli
+
+                itemDiv.innerHTML = `
+                    <img src="${item['Görsel Linki'] || 'https://via.placeholder.com/80/374151/d1d5db?text=Görsel'}" alt="${item['Ürün Adı']}" loading="lazy">
+                    <div class="ml-4 flex-1">
+                        <h3 class="title">${item['Ürün Adı']}</h3>
+                        <p class="description">${item['Açıklama'] || ''}</p>
+                        <span class="price">${item['Fiyat']} TL</span>
+                    </div>
+                `;
+                menuContainer.appendChild(itemDiv);
+            });
+        }
+
+        function filter(cat) {
+            const items = document.querySelectorAll('#menu-container > div');
+            items.forEach(item => {
+                if (cat === 'Hepsi' || item.getAttribute('data-category') === cat) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Butonların aktif/pasif durumunu güncelle
+            const categoryButtons = document.querySelectorAll('.category-button');
+            categoryButtons.forEach(button => {
+                if (button.textContent === cat) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // Sayfa yüklendiğinde menüyü getir
+        document.addEventListener('DOMContentLoaded', fetchMenuData);
+    </script>
+</body>
+</html>
