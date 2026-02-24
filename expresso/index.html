@@ -6,138 +6,110 @@
     <title>Kafe Menü</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { @apply bg-gray-900 text-gray-100; } /* Koyu arka plan ve açık yazı */
-        header { @apply bg-gray-800 shadow-lg; }
-        nav { @apply bg-gray-800 border-b border-gray-700; }
-        .category-scroll { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        body { background-color: #111827; color: #f3f4f6; font-family: sans-serif; }
+        .category-scroll { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .category-scroll::-webkit-scrollbar { display: none; }
-        .category-button { @apply px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200; }
-        .category-button.active { @apply bg-purple-600 text-white; }
-        .category-button:not(.active) { @apply bg-gray-700 text-gray-300 hover:bg-gray-600; }
-        .menu-item-card { @apply flex items-center bg-gray-800 p-3 rounded-xl shadow-lg border border-gray-700; }
-        .menu-item-card img { @apply w-20 h-20 rounded-lg object-cover flex-shrink-0; }
-        .menu-item-card .title { @apply font-bold text-lg text-white; }
-        .menu-item-card .description { @apply text-sm text-gray-400; }
-        .menu-item-card .price { @apply text-purple-400 font-bold mt-1 block; }
+        .category-btn { @apply px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 mr-2; }
+        .category-btn.active { @apply bg-orange-500 text-white shadow-lg; }
+        .category-btn:not(.active) { @apply bg-gray-800 text-gray-400 border border-gray-700; }
+        .item-card { @apply flex items-center bg-gray-800 p-3 rounded-2xl border border-gray-700 shadow-md; }
+        .item-img { @apply w-20 h-20 rounded-xl object-cover border border-gray-600; }
+        .price-tag { @apply text-orange-400 font-bold text-lg; }
     </style>
 </head>
-<body>
+<body class="pb-10">
 
-    <header class="p-6 text-center">
-        <h1 class="text-3xl font-extrabold tracking-tight">☕ Kafe Menü ☕</h1>
-        <p class="text-sm text-gray-400 mt-2">Lezzet Durağınız</p>
+    <header class="p-8 text-center bg-gray-800/50 backdrop-blur-md sticky top-0 z-20 border-b border-gray-700">
+        <h1 class="text-3xl font-black tracking-tighter text-white">☕ KAFE MENÜ</h1>
+        <p class="text-gray-400 text-xs mt-1 uppercase tracking-widest">Hoş Geldiniz</p>
     </header>
 
-    <nav id="category-nav" class="category-scroll flex gap-3 p-4 sticky top-0 z-10">
+    <nav id="categories" class="category-scroll flex p-4 sticky top-[92px] bg-gray-900/90 z-10 backdrop-blur-sm">
         </nav>
 
-    <main id="menu-container" class="p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div id="loader" class="text-center p-10">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500 mx-auto"></div>
+        <p class="mt-4 text-gray-400">Lezzetler yükleniyor...</p>
+    </div>
+
+    <main id="menu-container" class="p-4 grid gap-4 sm:grid-cols-2 max-w-4xl mx-auto hidden">
         </main>
 
     <script>
-        const SPREADSHEET_ID = '2PACX-1vQStsjKaO7a8FA-hdHej5mdFoiThR8xaPT_I_x16YanCIHZ6kQSXop4Qw0-VNUHBHiIxO3Cyj20u41r'; // Senin Google Sheets ID'n
-        const CATEGORIES = ['Hepsi', 'Sıcak İçecekler', 'Soğuk İçecekler', 'Bitki Çayları', 'Kahve Çeşitleri', 'Fast Food', 'Tatlılar']; // Kategori listesi
+        const SHEET_ID = '2PACX-1vQStsjKaO7a8FA-hdHej5mdFoiThR8xaPT_I_x16YanCIHZ6kQSXop4Qw0-VNUHBHiIxO3Cyj20u41r';
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`;
 
-        async function fetchMenuData() {
-    // SENİN CSV LİNKİN (pubhtml olan yeri pub?output=csv yapıyoruz)
-    const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vQStsjKaO7a8FA-hdHej5mdFoiThR8xaPT_I_x16YanCIHZ6kQSXop4Qw0-VNUHBHiIxO3Cyj20u41r/pub?output=csv`;
-    
-    try {
-        const response = await fetch(url);
-        const data = await response.text();
-        
-        // CSV'yi JSON objesine çeviren basit mantık
-        const rows = data.split('\n').map(row => row.split(','));
-        const headers = rows[0].map(h => h.trim());
-        
-        const menuItems = rows.slice(1).map(row => {
-            let item = {};
-            row.forEach((cell, i) => {
-                item[headers[i]] = cell.trim();
-            });
-            return item;
-        }).filter(item => item['Ürün Adı']); // Boş satırları ele
+        let allItems = [];
 
-        renderCategories(CATEGORIES);
-        renderMenuItems(menuItems);
-        filter('Hepsi');
-    } catch (error) {
-        console.error("Hata:", error);
-        document.getElementById('menu-container').innerHTML = '<p class="text-red-400 text-center">Veri formatı uyuşmadı. Lütfen Sheets başlıklarını kontrol edin.</p>';
-    }
-}
-                    return item;
-                }).filter(item => Object.keys(item).length > 0); // Tamamen boş satırları filtrele
+        async function initMenu() {
+            try {
+                const response = await fetch(CSV_URL);
+                const csvData = await response.text();
+                
+                // CSV Parsing
+                const rows = csvData.split('\n');
+                const headers = rows[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                
+                allItems = rows.slice(1).map(row => {
+                    const values = row.split(',').map(v => v.trim().replace(/"/g, ''));
+                    let obj = {};
+                    headers.forEach((header, i) => obj[header] = values[i]);
+                    return obj;
+                }).filter(item => item['Ürün Adı']);
 
-                renderCategories(CATEGORIES);
-                renderMenuItems(menuItems);
-                filter('Hepsi'); // Sayfa yüklendiğinde tüm ürünleri göster
-                return menuItems;
+                // Kategorileri çıkar (benzersiz olanlar)
+                const categories = ['Hepsi', ...new Set(allItems.map(i => i['Kategori']))];
+                
+                renderCategories(categories);
+                renderItems('Hepsi');
 
-            } catch (error) {
-                console.error("Menü verileri çekilirken bir hata oluştu:", error);
-                document.getElementById('menu-container').innerHTML = '<p class="text-red-400 text-center">Menü yüklenemedi. Lütfen daha sonra tekrar deneyin.</p>';
-                return [];
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('menu-container').classList.remove('hidden');
+                
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader').innerHTML = "⚠️ Menü yüklenemedi. Lütfen internetinizi kontrol edin.";
             }
         }
 
-        function renderCategories(categories) {
-            const navContainer = document.getElementById('category-nav');
-            navContainer.innerHTML = ''; // Mevcut butonları temizle
-
-            categories.forEach(category => {
-                const button = document.createElement('button');
-                button.textContent = category;
-                button.classList.add('category-button');
-                button.onclick = () => filter(category);
-                navContainer.appendChild(button);
-            });
+        function renderCategories(cats) {
+            const nav = document.getElementById('categories');
+            nav.innerHTML = cats.map(cat => `
+                <button onclick="filter('${cat}')" class="category-btn ${cat === 'Hepsi' ? 'active' : ''}">${cat}</button>
+            `).join('');
         }
 
-        function renderMenuItems(items) {
-            const menuContainer = document.getElementById('menu-container');
-            menuContainer.innerHTML = ''; // Mevcut öğeleri temizle
-
-            items.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.classList.add('menu-item-card');
-                itemDiv.setAttribute('data-category', item['Kategori']); // Google Sheet'teki Kategori sütun adıyla eşleşmeli
-
-                itemDiv.innerHTML = `
-                    <img src="${item['Görsel Linki'] || 'https://via.placeholder.com/80/374151/d1d5db?text=Görsel'}" alt="${item['Ürün Adı']}" loading="lazy">
+        function renderItems(selectedCat) {
+            const container = document.getElementById('menu-container');
+            const filtered = selectedCat === 'Hepsi' ? allItems : allItems.filter(i => i['Kategori'] === selectedCat);
+            
+            container.innerHTML = filtered.map(item => `
+                <div class="item-card animate-fade-in">
+                    <img src="${item['Görsel Linki'] || 'https://via.placeholder.com/150/222/fff?text=Kafe'}" class="item-img" onerror="this.src='https://via.placeholder.com/150/222/fff?text=Resim+Yok'">
                     <div class="ml-4 flex-1">
-                        <h3 class="title">${item['Ürün Adı']}</h3>
-                        <p class="description">${item['Açıklama'] || ''}</p>
-                        <span class="price">${item['Fiyat']} TL</span>
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold text-white text-lg">${item['Ürün Adı']}</h3>
+                        </div>
+                        <p class="text-gray-400 text-sm leading-tight mt-1">${item['Açıklama'] || ''}</p>
+                        <div class="mt-2 price-tag">${item['Fiyat']} TL</div>
                     </div>
-                `;
-                menuContainer.appendChild(itemDiv);
-            });
+                </div>
+            `).join('');
         }
 
         function filter(cat) {
-            const items = document.querySelectorAll('#menu-container > div');
-            items.forEach(item => {
-                if (cat === 'Hepsi' || item.getAttribute('data-category') === cat) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText === cat);
             });
-
-            // Butonların aktif/pasif durumunu güncelle
-            const categoryButtons = document.querySelectorAll('.category-button');
-            categoryButtons.forEach(button => {
-                if (button.textContent === cat) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
+            renderItems(cat);
         }
 
-        // Sayfa yüklendiğinde menüyü getir
-        document.addEventListener('DOMContentLoaded', fetchMenuData);
+        window.onload = initMenu;
     </script>
+
+    <style>
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    </style>
 </body>
 </html>
