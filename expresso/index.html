@@ -6,33 +6,82 @@
     <title>Kafe Menü</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #111827; color: #f3f4f6; font-family: sans-serif; }
-        .category-scroll { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .category-scroll::-webkit-scrollbar { display: none; }
-        .category-btn { @apply px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 mr-2; }
-        .category-btn.active { @apply bg-orange-500 text-white shadow-lg; }
-        .category-btn:not(.active) { @apply bg-gray-800 text-gray-400 border border-gray-700; }
-        .item-card { @apply flex items-center bg-gray-800 p-3 rounded-2xl border border-gray-700 shadow-md; }
-        .item-img { @apply w-20 h-20 rounded-xl object-cover border border-gray-600; }
-        .price-tag { @apply text-orange-400 font-bold text-lg; }
+        body { background-color: #0f172a; color: #f1f5f9; font-family: 'Inter', sans-serif; }
+        
+        /* Kategori Butonları İçin Özel Ayar */
+        .category-scroll { 
+            display: flex;
+            overflow-x: auto; 
+            white-space: nowrap; 
+            gap: 12px;
+            padding: 15px 20px;
+            -webkit-overflow-scrolling: touch; 
+            scrollbar-width: none; /* Firefox */
+        }
+        .category-scroll::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
+
+        .category-btn { 
+            flex: 0 0 auto; /* Butonların sıkışmasını engeller */
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: 1px solid #334155;
+            background-color: #1e293b;
+            color: #94a3b8;
+        }
+
+        .category-btn.active { 
+            background-color: #f97316; /* Turuncu */
+            color: white;
+            border-color: #f97316;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .item-card { 
+            display: flex;
+            align-items: center;
+            background-color: #1e293b; 
+            padding: 12px;
+            border-radius: 16px; 
+            border: 1px solid #334155;
+            margin-bottom: 12px;
+            transition: transform 0.2s;
+        }
+        .item-card:active { transform: scale(0.98); }
+        
+        .item-img { 
+            width: 85px; 
+            height: 85px; 
+            border-radius: 12px; 
+            object-cover: cover;
+            background-color: #334155;
+        }
+
+        .price-tag { color: #fbbf24; font-weight: 800; font-size: 1.1rem; }
     </style>
 </head>
 <body class="pb-10">
 
-    <header class="p-8 text-center bg-gray-800/50 backdrop-blur-md sticky top-0 z-20 border-b border-gray-700">
-        <h1 class="text-3xl font-black tracking-tighter text-white">☕ KAFE MENÜ</h1>
-        <p class="text-gray-400 text-xs mt-1 uppercase tracking-widest">Hoş Geldiniz</p>
+    <header class="pt-10 pb-6 text-center">
+        <div class="inline-block p-3 rounded-2xl bg-orange-500 mb-3 shadow-lg shadow-orange-500/20">
+            <span class="text-2xl">☕</span>
+        </div>
+        <h1 class="text-3xl font-black tracking-tight text-white">KAREM CAFE</h1>
+        <p class="text-gray-400 text-xs mt-1 tracking-[0.2em] uppercase">Dijital Menü</p>
     </header>
 
-    <nav id="categories" class="category-scroll flex p-4 sticky top-[92px] bg-gray-900/90 z-10 backdrop-blur-sm">
-        </nav>
-
-    <div id="loader" class="text-center p-10">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500 mx-auto"></div>
-        <p class="mt-4 text-gray-400">Lezzetler yükleniyor...</p>
+    <div class="sticky top-0 bg-[#0f172a]/95 backdrop-blur-md z-30 border-b border-gray-800">
+        <nav id="categories" class="category-scroll">
+            </nav>
     </div>
 
-    <main id="menu-container" class="p-4 grid gap-4 sm:grid-cols-2 max-w-4xl mx-auto hidden">
+    <div id="loader" class="text-center p-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mx-auto"></div>
+    </div>
+
+    <main id="menu-container" class="p-4 max-w-2xl mx-auto hidden">
         </main>
 
     <script>
@@ -46,29 +95,30 @@
                 const response = await fetch(CSV_URL);
                 const csvData = await response.text();
                 
-                // CSV Parsing
-                const rows = csvData.split('\n');
-                const headers = rows[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                const rows = csvData.split('\n').map(row => {
+                    // CSV ayırma mantığını güçlendirdik (virgüllere karşı)
+                    return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
+                });
+
+                const headers = rows[0];
                 
                 allItems = rows.slice(1).map(row => {
-                    const values = row.split(',').map(v => v.trim().replace(/"/g, ''));
                     let obj = {};
-                    headers.forEach((header, i) => obj[header] = values[i]);
+                    headers.forEach((header, i) => obj[header] = row[i]);
                     return obj;
                 }).filter(item => item['Ürün Adı']);
 
-                // Kategorileri çıkar (benzersiz olanlar)
                 const categories = ['Hepsi', ...new Set(allItems.map(i => i['Kategori']))];
                 
                 renderCategories(categories);
                 renderItems('Hepsi');
 
-                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('loader').style.display = 'none';
                 document.getElementById('menu-container').classList.remove('hidden');
                 
             } catch (err) {
                 console.error(err);
-                document.getElementById('loader').innerHTML = "⚠️ Menü yüklenemedi. Lütfen internetinizi kontrol edin.";
+                document.getElementById('loader').innerHTML = "⚠️ Veriler alınamadı.";
             }
         }
 
@@ -84,32 +134,32 @@
             const filtered = selectedCat === 'Hepsi' ? allItems : allItems.filter(i => i['Kategori'] === selectedCat);
             
             container.innerHTML = filtered.map(item => `
-                <div class="item-card animate-fade-in">
-                    <img src="${item['Görsel Linki'] || 'https://via.placeholder.com/150/222/fff?text=Kafe'}" class="item-img" onerror="this.src='https://via.placeholder.com/150/222/fff?text=Resim+Yok'">
+                <div class="item-card">
+                    <img src="${item['Görsel Linki'] || 'https://via.placeholder.com/150/1e293b/fff?text=...'}" class="item-img" onerror="this.src='https://via.placeholder.com/150/1e293b/fff?text=Resim'">
                     <div class="ml-4 flex-1">
-                        <div class="flex justify-between items-start">
-                            <h3 class="font-bold text-white text-lg">${item['Ürün Adı']}</h3>
+                        <h3 class="font-bold text-white text-md leading-tight">${item['Ürün Adı']}</h3>
+                        <p class="text-gray-400 text-xs mt-1 line-clamp-2">${item['Açıklama'] || ''}</p>
+                        <div class="mt-2 flex justify-between items-center">
+                            <span class="price-tag">${item['Fiyat']} TL</span>
                         </div>
-                        <p class="text-gray-400 text-sm leading-tight mt-1">${item['Açıklama'] || ''}</p>
-                        <div class="mt-2 price-tag">${item['Fiyat']} TL</div>
                     </div>
                 </div>
             `).join('');
         }
 
         function filter(cat) {
+            // Buton aktiflik durumunu güncelle
             document.querySelectorAll('.category-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.innerText === cat);
             });
+            
+            // Seçilen kategoriye kaydır (mobil konfor için)
+            event.target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            
             renderItems(cat);
         }
 
         window.onload = initMenu;
     </script>
-
-    <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-    </style>
 </body>
 </html>
