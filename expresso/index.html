@@ -39,35 +39,33 @@
         const CATEGORIES = ['Hepsi', 'Sıcak İçecekler', 'Soğuk İçecekler', 'Bitki Çayları', 'Kahve Çeşitleri', 'Fast Food', 'Tatlılar']; // Kategori listesi
 
         async function fetchMenuData() {
-            // Google Sheets'in JSON API endpoint'i.
-            // Bu linki, Paylaş -> Web'de Yayınla -> Yayınla -> Biçim: JSON olarak aldıktan sonra kopyalamalısın.
-            // Senin verdiğin link pubhtml olduğu için, ben onu pubjson ile değiştirdim.
-            const url = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pubjson`;
-            
-            try {
-                const response = await fetch(url);
-                const data = await response.text(); // Raw metin olarak al
-                
-                // Google Sheets'in JSON yapısı biraz karmaşık, onu doğru şekilde parse etmemiz gerekiyor.
-                // Genellikle "feed" -> "entry" içinde veriler bulunur.
-                const jsonStartIndex = data.indexOf('google.visualization.Query.setResponse(') + 'google.visualization.Query.setResponse('.length;
-                const jsonEndIndex = data.lastIndexOf(');');
-                const jsonString = data.substring(jsonStartIndex, jsonEndIndex);
-                const jsonData = JSON.parse(jsonString);
+    // SENİN CSV LİNKİN (pubhtml olan yeri pub?output=csv yapıyoruz)
+    const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vQStsjKaO7a8FA-hdHej5mdFoiThR8xaPT_I_x16YanCIHZ6kQSXop4Qw0-VNUHBHiIxO3Cyj20u41r/pub?output=csv`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.text();
+        
+        // CSV'yi JSON objesine çeviren basit mantık
+        const rows = data.split('\n').map(row => row.split(','));
+        const headers = rows[0].map(h => h.trim());
+        
+        const menuItems = rows.slice(1).map(row => {
+            let item = {};
+            row.forEach((cell, i) => {
+                item[headers[i]] = cell.trim();
+            });
+            return item;
+        }).filter(item => item['Ürün Adı']); // Boş satırları ele
 
-                const rows = jsonData.table.rows;
-                const columns = jsonData.table.cols;
-
-                // Sütun başlıklarını alalım
-                const headers = columns.map(col => col.label);
-
-                const menuItems = rows.map(row => {
-                    const item = {};
-                    row.c.forEach((cell, index) => {
-                        if (cell && cell.v !== null) { // Boş hücreleri atla
-                            item[headers[index]] = cell.v;
-                        }
-                    });
+        renderCategories(CATEGORIES);
+        renderMenuItems(menuItems);
+        filter('Hepsi');
+    } catch (error) {
+        console.error("Hata:", error);
+        document.getElementById('menu-container').innerHTML = '<p class="text-red-400 text-center">Veri formatı uyuşmadı. Lütfen Sheets başlıklarını kontrol edin.</p>';
+    }
+}
                     return item;
                 }).filter(item => Object.keys(item).length > 0); // Tamamen boş satırları filtrele
 
